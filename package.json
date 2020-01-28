@@ -1,0 +1,79 @@
+{
+	"name": "rell-tik-tac-toe-telegram-bot",
+	"version": "0.0.0",
+	"description": "",
+	"license": "MIT",
+	"repository": "EdJoPaTo/rell-tik-tac-toe-telegram-bot",
+	"author": {
+		"name": "EdJoPaTo",
+		"email": "EdJoPaTo@gmail.com",
+		"url": "https://edjopato.de"
+	},
+	"engines": {
+		"node": ">=8"
+	},
+	"scripts": {
+		"build": "del-cli dist && tsc",
+		"prepack": "npm run build",
+		"start": "ts-node source/index.ts",
+		"test": "tsc && xo && nyc ava"
+	},
+	"main": "dist/source",
+	"types": "dist/source",
+	"files": [
+		"dist/source",
+		"!*.test.*"
+	],
+	"keywords": [
+		""
+	],
+	"dependencies": {
+		"postchain-client": "^0.9.2",
+		"telegraf": "^3.36.0",
+		"telegraf-inline-menu": "^4.0.0",
+		"telegraf-session-local": "^1.0.2"
+	},
+	"devDependencies": {
+		"@sindresorhus/tsconfig": "^0.7.0",
+		"@types/node": "^13.1.4",
+		"@typescript-eslint/eslint-plugin": "^2.15.0",
+		"@typescript-eslint/parser": "^2.15.0",
+		"ava": "^3.0.0",
+		"del-cli": "^3.0.0",
+		"eslint-config-xo-typescript": "^0.24.1",
+		"nyc": "^15.0.0",
+		"ts-node": "^8.6.2",
+		"typescript": "^3.7.4",
+		"xo": "^0.25.3"
+	},
+	"nyc": {
+		"extension": [
+			".ts"
+		],
+		"include": [
+			"dist/source",
+			"source"
+		],
+		"exclude": [
+			"**/*.test.ts"
+		],
+		"reporter": [
+			"lcov",
+			"text"
+		]
+	},
+	"xo": {
+		"semicolon": false,
+		"extends": "xo-typescript",
+		"extensions": [
+			"ts"
+		],
+		"rules": {
+			"ava/no-ignored-test-files": "off",
+			"@typescript-eslint/semi": [
+				"error",
+				"never"
+			]
+		}
+	}
+}
