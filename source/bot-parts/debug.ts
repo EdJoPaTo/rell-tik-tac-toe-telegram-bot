@@ -1,24 +1,28 @@
 import {Composer} from 'telegraf'
 
-import {getAllUsers, getAllGames, getOngoingGame} from '../communication'
+import {getTables, getPlayers, getOpenTables, getPlayerTables} from '../communication'
 
 export const bot = new Composer()
 
-function codeIntoMarkdown(header: string, code: string) : string {
+function codeIntoMarkdown(header: string, code: string): string {
 	return '*' + header + '*\n```\n' + code + '\n```\n'
 }
 
 bot.command('debug', async ctx => {
 	await ctx.replyWithMarkdown(codeIntoMarkdown(
-		'get_all_users',
-		JSON.stringify(await getAllUsers(), null, '  ')
+		'getPlayers',
+		JSON.stringify(await getPlayers(), null, '  ')
 	))
 	await ctx.replyWithMarkdown(codeIntoMarkdown(
-		'get_all_games',
-		JSON.stringify(await getAllGames(), null, '  ')
+		'getTables',
+		JSON.stringify(await getTables(), null, '  ')
 	))
 	await ctx.replyWithMarkdown(codeIntoMarkdown(
-		'get_ongoing_game',
-		JSON.stringify(await getOngoingGame((ctx as any).session), null, '  ')
+		'getOpenTables',
+		JSON.stringify(await getOpenTables((ctx as any).session), null, '  ')
+	))
+	await ctx.replyWithMarkdown(codeIntoMarkdown(
+		'getPlayerTables',
+		JSON.stringify(await getPlayerTables((ctx as any).session), null, '  ')
 	))
 })
