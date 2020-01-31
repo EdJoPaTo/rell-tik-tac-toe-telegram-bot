@@ -24,7 +24,7 @@ export function gameStateByInt(index: number): GameState {
 }
 
 export type FieldState = 'X' | 'O' | 'unset'
-export const FIELD_STATE: FieldState[] = ['X', 'O', 'unset']
+export const FIELD_STATE: FieldState[] = ['unset', 'X', 'O']
 
 export function fieldStateByInt(index: number): FieldState {
 	return FIELD_STATE[index]
