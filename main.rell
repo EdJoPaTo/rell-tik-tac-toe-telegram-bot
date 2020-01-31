@@ -1,5 +1,5 @@
 entity player {
-    key name;
+    name;
     key pubkey;
 }
 
@@ -21,26 +21,26 @@ operation create_player(name, pubkey) {
     create player(name, pubkey);
 }
 
-operation new_table(table_name: text, player_name: text) {
-    val player1 = player@{player_name};
+operation new_table(table_name: text, pubkey) {
+    val player1 = player@{pubkey};
     require(is_signer(player1.pubkey));
     create table(.name = table_name, player1, .cells = cells([0, 0, 0, 0, 0, 0, 0, 0, 0]).to_bytes(), 0);
     create player_at_table(table@{table_name}, player1, 1);
 }
 
-operation add_player(player_name: text, table_name: text) {
+operation add_player(pubkey, table_name: text) {
     val table = table@{table_name};
     require(table.state == 0);
-    val player2 = player@{player_name};
+    val player2 = player@{pubkey};
     require(is_signer(player2.pubkey));
     create player_at_table(table, player2, 2);
     table.state += 1;
 }
 
-operation move(player_name: text, table_name: text, cell: integer) {
+operation move(pubkey, table_name: text, cell: integer) {
     val table = table@{table_name};
     require(table.state == 1, "Not the right time to call this operation!");
-    val pat = player_at_table@{.player.name == player_name, table@{table_name}}; // pat == player_at_table
+    val pat = player_at_table@{.player.pubkey == pubkey, table@{table_name}}; // pat == player_at_table
     val player = pat.player;
     require(is_signer(player.pubkey), "You are not the signer!");
     require(table.whose_turn == player, "It is not your turn!");
