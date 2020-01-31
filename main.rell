@@ -21,14 +21,14 @@ operation create_player(name, pubkey) {
     create player(name, pubkey);
 }
 
-operation new_table(table_name: text, pubkey) {
+operation create_table(table_name: text, pubkey) {
     val player1 = player@{pubkey};
     require(is_signer(player1.pubkey));
     create table(.name = table_name, player1, .cells = cells([0, 0, 0, 0, 0, 0, 0, 0, 0]).to_bytes(), 0);
     create player_at_table(table@{table_name}, player1, 1);
 }
 
-operation add_player(pubkey, table_name: text) {
+operation join_table(table_name: text, pubkey) {
     val table = table@{table_name};
     require(table.state == 0);
     val player2 = player@{pubkey};
@@ -37,7 +37,7 @@ operation add_player(pubkey, table_name: text) {
     table.state += 1;
 }
 
-operation move(pubkey, table_name: text, cell: integer) {
+operation move(table_name: text, pubkey, cell: integer) {
     val table = table@{table_name};
     require(table.state == 1, "Not the right time to call this operation!");
     val pat = player_at_table@{.player.pubkey == pubkey, table@{table_name}}; // pat == player_at_table
@@ -101,7 +101,15 @@ function is_win(cells: list<integer>): integer {
     return 0;
 }
 
-query getPlayer (pubkey, name) = player@?{ name, pubkey};
+query getPlayers() {
+    return player@*{}(@sort_desc name = .name);
+}
+
+query getPlayer(pubkey) = player@?{pubkey};
+
+query getTables() {
+    return table@*{}(@sort_desc name = .name, whose_turn = .whose_turn.name);
+}
 
 query getOpenTables(pubkey) {
     return table@*{.state == 0, .whose_turn.pubkey != pubkey}(@sort_desc name = .name, whose_turn = .whose_turn.name);
