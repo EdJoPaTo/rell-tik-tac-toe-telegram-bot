@@ -1,0 +1,136 @@
+enum game_state {
+    wait_for_player,
+    turn_X,
+    turn_O,
+    finished_winner_X,
+    finished_winner_O,
+    finished_draw
+}
+
+enum field_state { X, O, unset }
+
+entity game {
+    mutable game_state = game_state.wait_for_player;
+    playerX: pubkey;
+    mutable playerO: pubkey;
+    mutable field: byte_array = game_field().to_bytes();
+}
+
+entity user {
+    key pubkey;
+    name;
+}
+
+struct game_field {
+    mutable cells: list<field_state> = list<field_state>();
+}
+
+function get_user(pubkey): user {
+    var user = user@?{.pubkey == pubkey};
+    require(user, 'user with pubkey not found');
+    return user;
+}
+
+function game_won(game_field): boolean {
+    val cells = game_field.cells;
+
+    if (cells[0] != field_state.unset and cells[0] == cells[1] and cells[1] == cells[2]) {
+        return true;
+    }
+
+    if (cells[3] != field_state.unset and cells[3] == cells[4] and cells[4] == cells[5]) {
+        return true;
+    }
+
+    if (cells[6] != field_state.unset and cells[6] == cells[7] and cells[7] == cells[8]) {
+        return true;
+    }
+
+    for (cell in cells) {
+        if (cell == field_state.unset) {
+            return false;
+        }
+    }
+
+    return false;
+}
+
+operation create_user (name, pubkey) {
+    create user(name, pubkey);
+}
+
+operation try_join(pubkey) {
+    is_signer(pubkey);
+    var user = get_user(pubkey);
+
+    // TODO: dont join when in ongoing game
+
+    val empty_games = game@*{.game_state == game_state.wait_for_player};
+    if (empty_games.size() == 0) {
+        create game(.playerX = pubkey, .playerO = pubkey);
+    } else {
+        empty_games[0].playerO = pubkey;
+        empty_games[0].game_state = game_state.turn_X;
+    }
+}
+
+operation do_turn(pubkey, field_id: integer) {
+    is_signer(pubkey);
+    var user = get_user(pubkey);
+
+    var game = game@?{(.game_state == game_state.turn_X and .playerX == pubkey) or (.game_state == game_state.turn_O and .playerO == pubkey)};
+    require(game, 'no game with a possible turn found');
+
+    val field = game_field.from_bytes(game.field);
+    while (field.cells.size() < 9) {
+        field.cells.add(field_state.unset);
+    }
+
+    require(field.cells[field_id] == field_state.unset, 'field is already set');
+
+    if (game.game_state == game_state.turn_X) {
+        field.cells[field_id] = field_state.X;
+
+        if (game_won(field)) {
+            game.game_state = game_state.finished_winner_X;
+        } else {
+            game.game_state = game_state.turn_O;
+        }
+    } else {
+        field.cells[field_id] = field_state.O;
+
+        if (game_won(field)) {
+            game.game_state = game_state.finished_winner_O;
+        } else {
+            game.game_state = game_state.turn_X;
+        }
+    }
+
+    game.field = field.to_bytes();
+}
+
+query get_ongoing_game(pubkey) {
+    var game = game@?{
+        (.game_state == game_state.turn_X or .game_state == game_state.turn_O or .game_state == game_state.wait_for_player) and
+        (.playerX == pubkey or .playerO == pubkey)
+    };
+
+    if (game == null) {
+        return null;
+    }
+
+    var field = game_field.from_bytes(game.field);
+
+    var playerX = get_user(game.playerX);
+    var playerO = get_user(game.playerO);
+
+    return (game.game_state, playerX.name, playerO.name, field);
+}
+
+query get_all_games() {
+    return game@*{}(.playerX, .playerO, .field, .game_state);
+}
+
+query get_all_users() {
+    return user@*{}.name;
+}
