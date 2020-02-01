@@ -5,8 +5,8 @@ const pcl = require('postchain-client')
 
 // Check the node log on rellide-staging.chromia.dev to get node api url.
 // const nodeApiUrl = 'https://rellide-staging.chromia.dev/node/XXXXX/'
-const nodeApiUrl = 'https://rellide-staging.chromia.dev/node/10014/'
-const blockchainRID = '53941D0F4661839F249F4311D4E2FF9AB1C3DF4C87E0BF31029919DA8A786442' // default RID on rellide-staging.chromia.dev
+const nodeApiUrl = 'http://195.128.102.22:7741'
+const blockchainRID = '4C50A7E40EC5C65E0038854366B262436F4CD92AB95FEC8506A6451A7D48117A'
 
 const rest = pcl.restClient.createRestClient(nodeApiUrl, blockchainRID, 5)
 const gtx = pcl.gtxClient.createClient(
@@ -115,7 +115,7 @@ export async function getPlayerTables(userKeys: UserKeys): Promise<TableParticip
 		'getPlayerTables',
 		{
 			pubkey: userKeys.pubKey
-	}
+		}
 	)
 
 	return raw
@@ -126,7 +126,7 @@ export async function getTable(tableName: string): Promise<TableFullInfo> {
 		'getGame',
 		{
 			name: tableName
-	}
+		}
 	)
 
 	return raw
