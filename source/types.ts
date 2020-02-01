@@ -1,38 +1,44 @@
-export interface Session {
-	privKey: string;
+export interface UserKeys {
 	pubKey: string;
+	privKey: string;
 }
 
-/*
-enum game_state {
-	wait_for_player,
-	turn_X,
-	turn_O,
-	finished_winner_X,
-	finished_winner_O,
-	finished_draw
+export interface Session extends UserKeys {
 }
 
-enum field_state { X, O, unset }
-*/
-
-export type GameState = 'wait_for_player' | 'turn_X' | 'turn_O' | 'finished_winner_X' | 'finished_winner_O' | 'finished_draw'
-export const GAME_STATE: GameState[] = ['wait_for_player', 'turn_X', 'turn_O', 'finished_winner_X', 'finished_winner_O', 'finished_draw']
-
-export function gameStateByInt(index: number): GameState {
-	return GAME_STATE[index]
+export enum TableState {
+	WaitForPlayer = 0,
+	Running = 1,
+	Draw = 2,
+	GameWon = 3
 }
 
-export type FieldState = 'X' | 'O' | 'unset'
-export const FIELD_STATE: FieldState[] = ['unset', 'X', 'O']
-
-export function fieldStateByInt(index: number): FieldState {
-	return FIELD_STATE[index]
+export enum FieldState {
+	Unset = 0,
+	X = 1,
+	O = 2
 }
 
-export interface Game {
-	state: GameState;
-	playerX: string;
-	playerO: string;
-	field: FieldState[];
+export interface TableInfo {
+	name: string;
+	/* eslint @typescript-eslint/camelcase: off */
+	whose_turn: string;
+}
+
+export interface TableStateInfo extends TableInfo {
+	state: TableState;
+}
+
+export interface TableParticipantInfo extends TableStateInfo {
+	sign: FieldState;
+}
+
+export interface TableFullInfo extends TableStateInfo {
+	board: number[];
+	players: PlayerOnBoard[];
+}
+
+export interface PlayerOnBoard {
+	name: string;
+	sign: FieldState;
 }

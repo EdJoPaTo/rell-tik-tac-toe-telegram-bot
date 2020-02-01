@@ -1,8 +1,7 @@
-import {Game, gameStateByInt, fieldStateByInt} from './types'
+import {TableFullInfo, TableParticipantInfo, TableInfo, UserKeys} from './types'
 
 /* eslint @typescript-eslint/no-var-requires: warn */
 const pcl = require('postchain-client')
-// const crypto = require('crypto')
 
 // Check the node log on rellide-staging.chromia.dev to get node api url.
 // const nodeApiUrl = 'https://rellide-staging.chromia.dev/node/XXXXX/'
@@ -19,11 +18,6 @@ const gtx = pcl.gtxClient.createClient(
 	[]
 )
 
-export interface UserKeys {
-	pubKey: string,
-	privKey: string
-}
-
 function keysBufferToString(b: Buffer): string {
 	return b.toString('hex')
 }
@@ -37,11 +31,11 @@ async function doOperations(keys: UserKeys, addOps: (tx: any) => void): Promise<
 
 	addOps(tx)
 
-	tx.sign(keysStringToBuffer(keys.privKey), keysStringToBuffer(keys.pubKey));
-	await tx.postAndWaitConfirmation();
+	tx.sign(keysStringToBuffer(keys.privKey), keysStringToBuffer(keys.pubKey))
+	await tx.postAndWaitConfirmation()
 }
 
-export async function createUser(name: string): Promise<UserKeys> {
+export async function createPlayer(name: string): Promise<UserKeys> {
 	const user = pcl.util.makeKeyPair()
 	const {pubKey, privKey} = user
 	const keys: UserKeys = {
@@ -50,61 +44,90 @@ export async function createUser(name: string): Promise<UserKeys> {
 	}
 
 	await doOperations(keys, tx => {
-		tx.addOperation('create_user', name, pubKey)
+		tx.addOperation('create_player', name, pubKey)
 	})
 
 	return keys
 }
 
-export async function tryJoin(userKeys: UserKeys): Promise<void> {
+export async function createTable(tableName: string, userKeys: UserKeys): Promise<void> {
 	await doOperations(userKeys, tx => {
-		tx.addOperation('try_join', keysStringToBuffer(userKeys.pubKey))
+		tx.addOperation('create_table', tableName, keysStringToBuffer(userKeys.pubKey))
 	})
 }
 
-export async function doTurn(userKeys: UserKeys, fieldId: number): Promise<void> {
+export async function joinTable(tableName: string, userKeys: UserKeys): Promise<void> {
 	await doOperations(userKeys, tx => {
-		tx.addOperation('do_turn', keysStringToBuffer(userKeys.pubKey), fieldId)
+		tx.addOperation('join_table', tableName, keysStringToBuffer(userKeys.pubKey))
 	})
 }
 
-export async function getAllUsers(): Promise<string[]> {
-	const result = await gtx.query(
-		'get_all_users',
-		{}
-	)
-
-	return result
+export async function move(tableName: string, userKeys: UserKeys, cell: number): Promise<void> {
+	await doOperations(userKeys, tx => {
+		tx.addOperation('move', tableName, keysStringToBuffer(userKeys.pubKey), cell)
+	})
 }
 
-export async function getAllGames(): Promise<unknown[]> {
-	const result = await gtx.query(
-		'get_all_games',
-		{}
-	)
-
-	return result
-}
-
-export async function getOngoingGame(userKeys: UserKeys): Promise<Game | undefined> {
+export async function getPlayers(): Promise<string[]> {
 	const raw = await gtx.query(
-		'get_ongoing_game',
+		'getPlayers',
+		{}
+	)
+
+	const names = raw.map((o: any) => o.name)
+
+	return names
+}
+
+export async function getPlayer(userKeys: UserKeys): Promise<unknown> {
+	const result = await gtx.query(
+		'getPlayer',
 		{
 			pubkey: userKeys.pubKey
 		}
 	)
 
-	if (!raw) {
-		return undefined
-	}
-
-	const [gameState, playerX, playerO, field] = raw
-
-	const result: Game = {
-		playerX, playerO,
-		state: gameStateByInt(gameState),
-		field: field[0].map((o: number) => fieldStateByInt(o))
-	}
-
 	return result
+}
+
+export async function getTables(): Promise<TableInfo[]> {
+	const raw = await gtx.query(
+		'getTables',
+		{}
+	)
+
+	return raw
+}
+
+export async function getOpenTables(userKeys: UserKeys): Promise<TableInfo[]> {
+	const raw = await gtx.query(
+		'getOpenTables',
+		{
+			pubkey: userKeys.pubKey
+		}
+	)
+
+	return raw
+}
+
+export async function getPlayerTables(userKeys: UserKeys): Promise<TableParticipantInfo[]> {
+	const raw = await gtx.query(
+		'getPlayerTables',
+		{
+			pubkey: userKeys.pubKey
+	}
+	)
+
+	return raw
+}
+
+export async function getTable(tableName: string): Promise<TableFullInfo> {
+	const raw = await gtx.query(
+		'getGame',
+		{
+			name: tableName
+	}
+	)
+
+	return raw
 }

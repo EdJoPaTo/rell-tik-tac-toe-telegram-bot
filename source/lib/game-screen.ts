@@ -1,66 +1,67 @@
-import {Markup, Extra, CallbackButton} from 'telegraf'
+import {markdown as format} from 'telegram-format'
 
-import {Game, FieldState} from '../types'
-
-const emojis = {
-	x: '❌',
-	o: '⭕️',
-	fieldUnset: '🕳',
-	update: '🔄'
-}
+import {FieldState, TableState, TableStateInfo, TableFullInfo} from '../types'
 
 function emojiForFieldState(state: FieldState): string {
 	switch (state) {
-		case 'O': return emojis.o
-		case 'X': return emojis.x
-		default: return emojis.fieldUnset
+		case FieldState.O: return '⭕️'
+		case FieldState.X: return '❌'
+		default: return '🕳'
 	}
 }
 
-function buttonForField(game: Game, fieldId: number): CallbackButton {
-	return Markup.callbackButton(emojiForFieldState(game.field[fieldId]), `turn:${fieldId}`)
-}
-
-export function createScreen(game: Game): {text: string, extra: any} {
+export function createTableText(table: TableFullInfo, yourName: string): string {
 	let text = ''
-	const buttons: any[][] = []
 
-	text += `Player ${emojis.x}: _${game.playerX}_\n`
+	text += tableStateEmoji(table, yourName)
 
-	if (game.playerX !== game.playerO) {
-		text += `Player ${emojis.o}: _${game.playerO}_\n`
+	text += format.bold(table.name)
+	text += '\n'
+
+	text += 'State: '
+	text += TableState[table.state]
+	text += '\n'
+
+	text += '\n'
+	text += table.players
+		.map(o => `${emojiForFieldState(o.sign)}${table.whose_turn === o.name ? format.bold(o.name) : format.escape(o.name)}`)
+		.join('\n')
+	text += '\n'
+
+	return text
+}
+
+export function createBoardOptions(table: TableFullInfo): Record<string, string> {
+	const result: Record<string, string> = {}
+
+	for (const fieldId of Object.keys(table.board)) {
+		result[fieldId] = emojiForFieldState(table.board[Number(fieldId)])
 	}
 
-	text += `State: *${game.state}*`
+	return result
+}
 
-	buttons.push([
-		Markup.callbackButton(emojis.update + 'Update', 'update')
-	])
-
-	if (game.state !== 'wait_for_player') {
-		buttons.push([
-			buttonForField(game, 0),
-			buttonForField(game, 1),
-			buttonForField(game, 2)
-		])
-
-		buttons.push([
-			buttonForField(game, 3),
-			buttonForField(game, 4),
-			buttonForField(game, 5)
-		])
-
-		buttons.push([
-			buttonForField(game, 6),
-			buttonForField(game, 7),
-			buttonForField(game, 8)
-		])
+export function tableStateEmoji(table: TableStateInfo, yourName: string): string {
+	if (table.state === TableState.WaitForPlayer) {
+		return '🕓'
 	}
 
-	return {
-		text,
-		extra: Extra.markdown().markup(
-			Markup.inlineKeyboard(buttons)
-		)
+	if (table.state === TableState.Draw) {
+		return '🏳️'
 	}
+
+	if (table.state === TableState.GameWon) {
+		if (table.whose_turn === yourName) {
+			return '🥳'
+		}
+
+		return '😵'
+	}
+
+	// TableState.Running
+	if (table.whose_turn === yourName) {
+		return '🤔'
+	}
+
+	return '😴'
 }

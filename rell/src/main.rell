@@ -7,137 +7,158 @@ enum game_state {
     turn_O,
     finished_winner_X,
     finished_winner_O,
-    finished_draw
+    finished_draw    
 }
 
-enum field_state { unset, X, O }
-
-entity game {
-    mutable game_state = game_state.wait_for_player;
-    playerX: pubkey;
-    mutable playerO: pubkey;
-    mutable field: byte_array = game_field().to_bytes();
-}
-
-entity user {
-    key pubkey;
+entity player {
     name;
+    key pubkey;
 }
 
-struct game_field {
-    mutable cells: list<field_state> = list<field_state>();
+struct cells {cells: list<integer>;}
+entity table {
+    key name: text;
+    mutable whose_turn: player;
+    mutable cells: byte_array;
+    mutable state: integer;
 }
 
-function get_user(pubkey): user {
-    var user = user@?{.pubkey == pubkey};
-    require(user, 'user with pubkey not found');
-    return user;
+entity player_at_table {
+    key table, player; // one player can only play in one table
+    key table, sign: integer;
 }
 
-function game_won(game_field): boolean {
-    val cells = game_field.cells;
+operation create_player(name, pubkey) { //, auth_descriptor: ft3_acc.auth_descriptor, vault_auth_descriptor: ft3_acc.auth_descriptor) {
+    require(is_signer(pubkey));
+//    val account_id = ft3_acc.create_account_with_auth(auth_descriptor);
+//    val account = ft3_acc.account @ { account_id };
+//    ft3_acc._add_auth_descriptor(account, vault_auth_descriptor);
+    create player(name, pubkey);
+}
 
-    if (cells[0] != field_state.unset and cells[0] == cells[1] and cells[1] == cells[2]) {
-        return true;
+operation create_table(table_name: text, pubkey) {
+    val player1 = player@{pubkey};
+    require(is_signer(player1.pubkey));
+    create table(.name = table_name, player1, .cells = cells([0, 0, 0, 0, 0, 0, 0, 0, 0]).to_bytes(), 0);
+    create player_at_table(table@{table_name}, player1, 1);
+}
+
+operation join_table(table_name: text, pubkey) {
+    val table = table@{table_name};
+    require(table.state == 0);
+    val player2 = player@{pubkey};
+    require(is_signer(player2.pubkey));
+    create player_at_table(table, player2, 2);
+    table.state += 1;
+}
+
+operation move(table_name: text, pubkey, cell: integer) {
+    val table = table@{table_name};
+    require(table.state == 1, "Not the right time to call this operation!");
+    val pat = player_at_table@{.player.pubkey == pubkey, table@{table_name}}; // pat == player_at_table
+    val player = pat.player;
+    require(is_signer(player.pubkey), "You are not the signer!");
+    require(table.whose_turn == player, "It is not your turn!");
+    val cell_list = cells.from_bytes(table.cells).cells;
+    require(cell_list[cell] == 0, "This cell is already taken!");
+    cell_list[cell] = pat.sign;
+
+    table.cells = cells(cell_list).to_bytes();
+
+    print(cell_list);
+
+    if(is_win(cell_list) != 0) {
+        table.state = 3;
+    } else if (is_board_populated(cell_list)) {
+        table.state = 2;
+    } else {
+        val players = player_at_table@*{table};
+        table.whose_turn = if(table.whose_turn == players[0].player) players[1].player else players[0].player;
     }
+}
 
-    if (cells[3] != field_state.unset and cells[3] == cells[4] and cells[4] == cells[5]) {
-        return true;
-    }
-
-    if (cells[6] != field_state.unset and cells[6] == cells[7] and cells[7] == cells[8]) {
-        return true;
-    }
-
+function is_board_populated(cells: list<integer>): boolean {
     for (cell in cells) {
-        if (cell == field_state.unset) {
+        if (cell == 0) {
             return false;
         }
     }
 
-    return false;
+    return true;
 }
 
-operation create_user (name, pubkey) { //}, auth_descriptor: ft3_acc.auth_descriptor, vault_auth_descriptor: ft3_acc.auth_descriptor) {
-//    val account_id = ft3_acc.create_account_with_auth(auth_descriptor);
-//    val account = ft3_acc.account @ { account_id };
-//    ft3_acc._add_auth_descriptor(account, vault_auth_descriptor);
-    
-    create user(name, pubkey);
-}
-
-operation try_join(pubkey) {
-    is_signer(pubkey);
-    var user = get_user(pubkey);
-
-    // TODO: dont join when in ongoing game
-
-    val empty_games = game@*{.game_state == game_state.wait_for_player};
-    if (empty_games.size() == 0) {
-        create game(.playerX = pubkey, .playerO = pubkey);
-    } else {
-        empty_games[0].playerO = pubkey;
-        empty_games[0].game_state = game_state.turn_X;
-    }
-}
-
-operation do_turn(pubkey, field_id: integer) {
-    is_signer(pubkey);
-    var user = get_user(pubkey);
-
-    var game = game@?{(.game_state == game_state.turn_X and .playerX == pubkey) or (.game_state == game_state.turn_O and .playerO == pubkey)};
-    require(game, 'no game with a possible turn found');
-
-    val field = game_field.from_bytes(game.field);
-    while (field.cells.size() < 9) {
-        field.cells.add(field_state.unset);
-    }
-
-    require(field.cells[field_id] == field_state.unset, 'field is already set');
-
-    if (game.game_state == game_state.turn_X) {
-        field.cells[field_id] = field_state.X;
-
-        if (game_won(field)) {
-            game.game_state = game_state.finished_winner_X;
-        } else {
-            game.game_state = game_state.turn_O;
-        }
-    } else {
-        field.cells[field_id] = field_state.O;
-
-        if (game_won(field)) {
-            game.game_state = game_state.finished_winner_O;
-        } else {
-            game.game_state = game_state.turn_X;
+function is_win(cells: list<integer>): integer {
+    // check line
+    for (i in range(3)) {
+        val line = cells.sub(i*3, (3*i)+3);
+        if (line[0] != 0 and line[0] == line[1] and line[1] == line[2]) {
+            // somebody won
+            return line[0];
         }
     }
 
-    game.field = field.to_bytes();
+    // check vertical
+    for(i in range(3)){
+        val line = [cells[i], cells[i+3], cells[i+6]];
+        if(line[0] != 0 and line[0] == line[1] and line[1] == line[2]) {
+            // somebody won
+            return line[0];
+        }
+    }
+
+    // check diagonal
+    val line = [cells[0], cells[4], cells[8]];
+    val line2 = [cells[2], cells[4], cells[6]];
+    if((line[0]!=0 and line[0] == line[1] and line[1] == line[2]) or (line2[0] != 0 and line2[0] == line2[1] and line2[1]==line2[2])) {
+        // somebody won
+        return line[1];
+    }
+    return 0;
 }
 
-query get_ongoing_game(pubkey) {
-    var game = game@?{
-        (.game_state == game_state.turn_X or .game_state == game_state.turn_O or .game_state == game_state.wait_for_player) and
-        (.playerX == pubkey or .playerO == pubkey)
-    };
+query getPlayers() {
+    return player@*{}(@sort_desc name = .name);
+}
 
-    if (game == null) {
+query getPlayer(pubkey) = player@?{pubkey};
+
+query getTables() {
+    return table@*{}(@sort_desc name = .name, whose_turn = .whose_turn.name);
+}
+
+query getOpenTables(pubkey) {
+    return table@*{.state == 0, .whose_turn.pubkey != pubkey}(@sort_desc name = .name, whose_turn = .whose_turn.name);
+}
+
+query getPlayerTables (pubkey) {
+    return player_at_table@*{player@{pubkey}}(@sort_desc name = .table.name, state = .table.state, whose_turn = .table.whose_turn.name, sign = .sign);
+}
+
+query getSign(pubkey, table_name: text) = player_at_table@{player@{pubkey}, table@{table_name}}.sign;
+
+query getBoard(table_name: text) {
+    return cells.from_bytes(table@{.name == table_name}.cells).cells;
+}
+
+query getGame(name: text) {
+    var players = player_at_table@*{table@{name}}(name = .player.name, sign = .sign);
+
+    var table = table@?{name}(
+        .name,
+        .state,
+        .cells,
+        whose_turn = .whose_turn.name
+    );
+
+    if (table == null) {
         return null;
     }
 
-    var field = game_field.from_bytes(game.field);
-
-    var playerX = get_user(game.playerX);
-    var playerO = get_user(game.playerO);
-
-    return (game.game_state, playerX.name, playerO.name, field);
-}
-
-query get_all_games() {
-    return game@*{}(.playerX, .playerO, .field, .game_state);
-}
-
-query get_all_users() {
-    return user@*{}.name;
+    return (
+        name = table.name,
+        state = table.state,
+        whose_turn = table.whose_turn,
+        players = players,
+        board = cells.from_bytes(table.cells).cells
+    );
 }
