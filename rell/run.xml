@@ -1,0 +1,21 @@
+<run wipe-db="false">
+    <nodes>
+        <config src="config/node-config.properties" add-signers="false" />
+    </nodes>
+    <chains>
+         <chain name="TicTacToe" iid="1">
+            <config height="0">
+                <app module="">
+					<args module="lib.ft3.core">
+						<arg key="my_blockchain_name"><string>TicTacToe</string></arg>
+						<arg key="my_blockchain_website"><string>chainofalliance.com </string></arg>
+						<arg key="my_blockchain_description"><string>TicTacToe game for telegram</string></arg>
+						<arg key="request_max_count"><int>20</int></arg> <!-- maximum amount of request credit that is possible to keep -->
+						<arg key="request_recovery_time"><int>60000</int></arg> 
+			        </args>
+				</app>
+                <gtv src="config/config.template.xml"/>
+            </config>
+        </chain>
+    </chains>
+</run>

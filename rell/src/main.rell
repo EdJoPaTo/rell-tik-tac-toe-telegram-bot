@@ -1,3 +1,6 @@
+import lib.ft3.ft3_xc_basic_dev;
+import ft3_acc: lib.ft3.account;
+
 enum game_state {
     wait_for_player,
     turn_X,
@@ -55,7 +58,11 @@ function game_won(game_field): boolean {
     return false;
 }
 
-operation create_user (name, pubkey) {
+operation create_user (name, pubkey) { //}, auth_descriptor: ft3_acc.auth_descriptor, vault_auth_descriptor: ft3_acc.auth_descriptor) {
+//    val account_id = ft3_acc.create_account_with_auth(auth_descriptor);
+//    val account = ft3_acc.account @ { account_id };
+//    ft3_acc._add_auth_descriptor(account, vault_auth_descriptor);
+    
     create user(name, pubkey);
 }
 
