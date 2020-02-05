@@ -12,6 +12,8 @@ mainMenu.setCommand('start')
 mainMenu.submenu('My tables', 'my', myTablesMenu)
 mainMenu.submenu('Join open tables', 'open', openTablesMenu)
 
+mainMenu.urlButton('🦑 Source Code', 'https://github.com/EdJoPaTo/rell-tik-tac-toe-telegram-bot')
+
 export const bot = new Composer()
 
 bot.use(mainMenu.init({
